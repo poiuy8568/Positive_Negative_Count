@@ -1,0 +1,154 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+from matplotlib import style
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
+from sklearn.exceptions import DataConversionWarning
+warnings.filterwarnings(action='ignore', category=DataConversionWarning)
+style.use('ggplot')
+
+basepath = 'C:\\Users\\童安弘\\Desktop\\Indexes\\'
+path = 'GrossMargin'
+f = open(basepath + path + '\\' + path +  '_positive_count.csv')
+f2 = open(basepath + path + '\\' + path +  '_negative_count.csv')
+
+d = pd.read_csv(f)
+df = pd.DataFrame(d).drop('Group11',1).dropna().reset_index().drop('index',1)
+d2= pd.read_csv(f2)
+df2 = pd.DataFrame(d2).drop('Group11',1).dropna().reset_index().drop('index',1)
+df_name = list(df.columns.values)
+df2_name = list(df2.columns.values)
+rows = len(df.index)
+rows2 = len(df2.index)
+
+a = 0 
+avvg = []
+avvg.append('average')
+avvg2 = []
+avvg2.append('average')
+while a+1 < len(df_name):
+    target = df.iloc[:,a+1]
+    target2 = df2.iloc[:,a+1]
+    avg = np.mean(target)
+    avg2 = np.mean(target2)
+    avvg.append(avg)
+    avvg2.append(avg2)
+    a +=1
+
+df.loc[int(rows)+1]=avvg
+df2.loc[int(rows2)+1]=avvg2
+
+tar = df.iloc[rows,1:]
+tar2 = df2.iloc[rows2,1:]
+
+from sklearn import preprocessing
+tar_scaled = []
+tar_scaled.append('standardized')
+tar_scaled = tar_scaled + list(preprocessing.scale(tar))
+tar2_scaled = []
+tar2_scaled.append('standardized')
+tar2_scaled = tar2_scaled + list(preprocessing.scale(tar2))
+df.loc[rows+2]=tar_scaled
+df2.loc[rows2+2]=tar2_scaled
+
+def trend_low(x):    
+    r = 0 
+    apk = []
+    while r <= len(x)-1:
+        if x[r] >= 1 or x[r] <= -1 :
+            apk.append(x[r])
+        if x[r] < 1 and x[r] > -1 : 
+            if r == 1 :
+                break
+            if r == 2 :
+                if x[r+1] >= 1 or x[r+1] <= -1 :
+                    apkk = apk
+                    apkk.append(x[r+1])
+                    apkkstdev = np.std(apkk)
+                    ss = (x[r]-1) / apkkstdev
+                    if ss <= 1 and ss >= -1 :
+                        apk.append(x[r])
+                    if ss > 1 or ss < 1 :
+                        break
+            if r > 2 :
+                apkstdev = np.std(apk)
+                ss = (x[r]-1) / apkstdev
+                if ss <= 1 and ss >= -1 :
+                    apk.append(x[r])
+                if ss > 1 or ss < 1 :
+                    break
+        r+=1
+    apk = list(set(apk))
+    number = len(apk)/10
+    if number > 0.1:
+        if name == 'negative'  :
+            if x[0] >= 1 :
+                print ('Negative Count： ',path,"最低","%.0f%%" % (number*100),"的公司比較容易下跌")
+            if x[0] <= -1 : 
+                print ('Negative Count： ',path,"最低","%.0f%%" % (number*100),"的公司比較不容易下跌")
+        if name == 'positive':
+            if x[0] >= 1 :
+                print ('Positive Count： ',path,"最低","%.0f%%" % (number*100),"的公司比較容易上漲")  
+            if x[0] <= -1 :
+                print ('Positive Count： ',path,"最低","%.0f%%" % (number*100),"的公司比較不容易上漲")
+def trend_high(x):    
+    r = len(x)-1 
+    apk = []
+    while r >= 0:
+        if x[r] >= 1 or x[r] <= -1 :
+            apk.append(x[r])
+        if x[r] < 1 and x[r] > -1 : 
+            if r == len(x)-1 :
+                break
+            if r == len(x)-2 :
+                if x[r-1] >= 1 or x[r-1] <= -1 :
+                    apkk = apk
+                    apkk.append(x[r-1])
+                    apkkstdev = np.std(apkk)
+                    ss = (x[r]-1) / apkkstdev
+                    if ss <= 1 and ss >= -1 :
+                        apk.append(x[r])
+                    if ss > 1 or ss < 1 :
+                        break
+            if r > 2 :
+                apkstdev = np.std(apk)
+                ss = (x[r]-1) / apkstdev
+                if ss <= 1 and ss >= -1 :
+                    apk.append(x[r])
+                if ss > 1 or ss < 1 :
+                    break
+        r-=1
+    apk = list(set(apk))
+    number = len(apk)/10
+    if number > 0.1:
+        if name == 'negative'  :
+            if x[len(x)-1] >= 1 :
+                print ('Negative Count： ',path,"最高","%.0f%%" % (number*100),"的公司比較容易下跌")
+            if x[len(x)-1] <= -1 : 
+                print ('Negative Count： ',path,"最高","%.0f%%" % (number*100),"的公司比較不容易下跌")
+        if name == 'positive':
+            if x[len(x)-1] >= 1 :
+                print ('Positive Count： ',path,"最高","%.0f%%" % (number*100),"的公司比較容易上漲")  
+            if x[len(x)-1] <= -1 :
+                print ('Positive Count： ',path,"最高","%.0f%%" % (number*100),"的公司比較不容易上漲")                  
+    plt.plot(list(range(1,11)),list(x))
+    plt.title('Count')
+    plt.ylabel('Standardized')
+    plt.xlabel('Group')
+    new_ticks = np.linspace(1, 10, 10)
+    plt.xticks(new_ticks)
+    plt.legend(labels =['positive count','negative count'])
+
+s = df.iloc[rows+1,1:]
+name = 'positive'  
+trend_low(s)
+trend_high(s)
+s2 = df2.iloc[rows+1,1:]
+name = 'negative'
+trend_low(s2)
+trend_high(s2)
+
+f.close()
+f2.close()
