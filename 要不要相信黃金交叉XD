@@ -1,0 +1,134 @@
+import numpy as np
+from datetime import datetime
+import pandas as pd
+from matplotlib import style
+import warnings
+import math
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
+from sklearn.exceptions import DataConversionWarning
+warnings.filterwarnings(action='ignore', category=DataConversionWarning)
+style.use('ggplot')
+
+basepath = 'C:\\Users\\童安弘\\Desktop\\Indexes\\'
+path = 'AnnualGrowth'
+f = open(basepath + path + '.csv')
+f2 = open(basepath + 'StockPrice.csv')
+
+df = pd.read_csv(f)
+df2 = pd.read_csv(f2).dropna()
+df.columns = ['ticker','year','month','breakthrough']
+trend,year,month = [],[],[]
+for x in df.iloc[:,3] :
+    if x > 0 :
+        a = 1 
+        trend.append(a)
+    elif x < 0 :
+        a = -1
+        trend.append(a)
+df['trend'] = np.array(trend)
+for x in df2.iloc[:,1]:
+    a = x[:4]
+    b = x[5:-3]
+    year.append(a)
+    month.append(b)
+df2['year'] = np.array(year)
+df2['month'] = np.array(month)
+df = df.sort_values(by = ['ticker','year','month'], ascending = [True,True,True]).astype(str)
+df2 = df2.sort_values(by=['ticker','year','month'], ascending = [True,True,True]).astype(str)
+del df2['date'] 
+df2 = df2[['ticker','year','month','totalreturnprice']]
+
+data = df.merge(df2,how='left',on=['ticker','year','month']).dropna()
+mdates = []
+year = list(data.iloc[:,1].astype(str))
+month = list(data.iloc[:,2].astype(str))
+mn = []
+for x in month:
+    r = len(x)
+    if r == 1:
+        x = x.zfill(2)
+        mn.append(x)
+    if r == 2:
+        mn.append(x)
+m = 0
+while m < len(year):
+    dates = str(year[m])+'/'+str(mn[m])
+    dates = str(datetime.strptime(dates,'%Y/%m'))
+    dates = dates[:7]
+    mdates.append(dates)
+    m += 1
+data['dates'] = np.array(mdates)
+data = data[['ticker','dates','trend','totalreturnprice']]
+r = []
+for x in list(data.iloc[:,1]):
+    if x[:4] == 2015 :
+        x = int(x[-2:])
+    if x[:4] != 2015 :
+        x = int(x[-2:]) + (int(x[:4])-2015)*12
+    r.append(x)
+data['count_month'] = np.array(r) 
+
+def isNaN(num):
+    return num != num
+
+def geomean_return(month_count,return_count):
+    q = 0
+    georeturn = []
+    while q < len(month_count):
+        greturn = return_count[q] * month_count[q] / np.mean(month_count)
+        georeturn.append(greturn)
+        q+=1
+    greturn = (np.mean(georeturn) -1)*12
+    return greturn
+
+def returntest(period):
+    ticker_name = list(data.drop_duplicates(subset='ticker',keep='first',inplace=False).iloc[:,0])
+    for x in ticker_name :
+        analysis = data[data['ticker'] == x ]
+        price_als = df2[df2['ticker'] == x ]
+        target = []
+        price_target = []
+        a = 0
+        for rows in analysis['trend']:
+            row = int(rows) 
+            if row != 1 :
+                target.append(a)
+            if row == 1 :
+                price_target.append(a)
+            a += 1 
+        month_count = []
+        return_count = []
+        for a in target:
+            if a > 0 :
+                mmn = int(analysis.iloc[a,4]) - int(analysis.iloc[a-1,4])
+                pri = ((float(analysis.iloc[a,3]) /float(analysis.iloc[a-1,3]))**(1/mmn))
+                month_count.append(mmn)
+                return_count.append(pri)           
+        avg_month = np.mean(month_count) 
+        avg_return = geomean_return(month_count,return_count)
+        for b in price_target :
+            time = analysis.iloc[b,4]
+            time = time + period
+            preturn = []
+            if time <= 12 and time >= 1:
+                price_frame = price_als[price_als['year'] == '2015']
+                price_frame2 = price_frame[price_frame['month'] == str(time)]
+                if len(price_frame2.iloc[:,0]) > 0 :
+                    price = float(price_frame2.iloc[:,3])
+                    period_return = (price - float(analysis.iloc[b,3]))/float(analysis.iloc[b,3])
+                    preturn.append(period_return)
+            if time > 12 and time < 1:
+                price_frame = price_als[price_als['year'] == str(math.floor(time/12)+2015)]
+                price_frame2 = price_frame[price_frame['month'] == str(time-math.floor(time/12)*12)]
+                if len(price_frame2.iloc[:,0]) > 0 :
+                    price = float(price_frame2.iloc[:,3])
+                    period_return = (price - float(analysis.iloc[b,3]))/float(analysis.iloc[b,3])
+                    preturn.append(period_return)
+        period_return = np.mean(preturn)
+        if isNaN(avg_month) == False :
+            print('股票代號:',x,'；平均持有',int(avg_month),'個月；','平均年報酬率:',"%.2f%%" % (avg_return*100),'持有',period,'月平均報酬率:',"%.2f%%" % (period_return*100))
+returntest(1) # 括號內輸入持有月數，印出 nan表示找不到該月股價
+
+f.close()
+f2.close()
